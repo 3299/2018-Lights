@@ -13,7 +13,9 @@ boolean oddEffect = true;
 long lastEffect = millis();
 uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
-int bytes[4];
+int bytes[3];
+int i = 0;
+boolean commandReady = false;
 
 void setup() {
   // Serial stuff
@@ -26,42 +28,52 @@ void setup() {
 }
 
 void loop() {
-  int i = 0;
   while (Serial.available() > 0) {
-    bytes[i] = Serial.read();
-    i ++;
-  }
+    int thisByte = Serial.read();
 
-  // set color
-  CRGB color;
-  if (bytes[0] == 0) {
-    color = CRGB::Blue;
-  }
-  else {
-    color = CRGB::Red;
-  }
+    if (thisByte == 253) { // start of message
+      commandReady = false;
 
-  // 0x00 is flash
-  if (bytes[1] == 0) {
-    if (bytes[2] == 0) {
-      flash(false, bytes[3], color);
+    }
+    else if (thisByte == 254) { // end of message
+      commandReady = true;
+      i = 0;
     }
     else {
-      flash(false, bytes[3], color);
+      bytes[i] = thisByte;
+
+      i ++;
     }
   }
-  // 0x01 is stagger
-  else if (bytes[1] == 1) {
-    stagger(bytes[2], color, bytes[3]);
-  }
-  // 0x02 is rainbow
-  else if (bytes[1] == 2) {
-    rainbow();
-  }
 
-  stagger(400, CRGB::Red, 100);
-  //flash(false, 500, CRGB::Purple);
-  //rainbow();
+  if (commandReady == true) {
+    // set color
+    CRGB color;
+    if (bytes[0] == 0) {
+      color = CRGB::Blue;
+    }
+    else {
+      color = CRGB::Red;
+    }
+
+    // 0x00 is flash
+    if (bytes[1] == 0) {
+      if (bytes[2] == 0) {
+        flash(false, 255, color);
+      }
+      else {
+        flash(true, bytes[3], color);
+      }
+    }
+    // 0x01 is stagger
+    else if (bytes[1] == 1) {
+      stagger(bytes[2], color, bytes[3]);
+    }
+    // 0x02 is rainbow
+    else if (bytes[1] == 2) {
+      rainbow();
+    }
+  }
 
   EVERY_N_MILLISECONDS( 20 ) {
     gHue++;  // slowly cycle the "base color" through the rainbow
