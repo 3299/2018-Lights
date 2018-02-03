@@ -1,4 +1,5 @@
 #include "FastLED.h"
+#include <Wire.h>
 
 FASTLED_USING_NAMESPACE
 
@@ -13,9 +14,10 @@ boolean oddEffect = true;
 long lastEffect = millis();
 uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
-int bytes[3];
-int i = 0;
-boolean commandReady = false;
+String command = "";
+boolean fade = true;
+CRGB color = CRGB::Purple;
+int speed = 255;
 
 void setup() {
   // Serial stuff
@@ -25,55 +27,46 @@ void setup() {
   // FastLED stuff
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(255);
+
+  Wire.begin(4);                // join i2c bus with address #4
+  Wire.onReceive(receiveEvent); // register event
 }
 
 void loop() {
-  while (Serial.available() > 0) {
-    int thisByte = Serial.read();
-
-    if (thisByte == 253) { // start of message
-      commandReady = false;
-
-    }
-    else if (thisByte == 254) { // end of message
-      commandReady = true;
-      i = 0;
-    }
-    else {
-      bytes[i] = thisByte;
-
-      i ++;
-    }
-  }
-
-  if (commandReady == true) {
-    // set color
-    CRGB color;
-    if (bytes[0] == 0) {
+  char commandByte = command.charAt(0);
+  if (commandByte != 'r') {
+    if (command.charAt(1) == 'b') {
       color = CRGB::Blue;
     }
     else {
       color = CRGB::Red;
     }
 
-    // 0x00 is flash
-    if (bytes[1] == 0) {
-      if (bytes[2] == 0) {
-        flash(false, 255, color);
-      }
-      else {
-        flash(true, bytes[3], color);
-      }
+    if (command.charAt(2) == 't') {
+      boolean fade = true;
     }
-    // 0x01 is stagger
-    else if (bytes[1] == 1) {
-      stagger(bytes[2], color, bytes[3]);
+    else {
+      boolean fade = false;
     }
-    // 0x02 is rainbow
-    else if (bytes[1] == 2) {
-      rainbow();
+
+    int speed = command.substring(3, command.length() - 1).toInt();
+  }
+
+  if (commandByte == 'r') {
+    rainbow();
+  }
+  else if (commandByte == 's') {
+    if (fade == true) {
+      stagger(speed, color, 30);
+    }
+    else {
+      stagger(speed, color, 0);
     }
   }
+  else if (commandByte == 'f') {
+    flash(fade, speed, color);
+  }
+
 
   EVERY_N_MILLISECONDS( 20 ) {
     gHue++;  // slowly cycle the "base color" through the rainbow
@@ -81,6 +74,7 @@ void loop() {
 
   FastLED.show();
   FastLED.delay(1000 / FRAMES_PER_SECOND);
+
 }
 
 void stagger(int period, CRGB color, int fadingPercent) {
@@ -129,4 +123,19 @@ void flash(boolean fade, int period, CRGB color) {
 void rainbow() {
   fill_rainbow(leds, NUM_LEDS, gHue, 10);
 }
+
+void receiveEvent(int howMany) {
+  String newCommand = "";
+  while (1 < Wire.available()) { // loop through all but the last
+    char c = Wire.read(); // receive byte as a character
+    Serial.print(c);         // print the character
+    newCommand += c;
+  }
+  int x = Wire.read();    // receive byte as an integer
+  Serial.println();
+
+  command = newCommand;
+}
+
+
 
