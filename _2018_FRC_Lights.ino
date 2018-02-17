@@ -3,10 +3,9 @@
 
 FASTLED_USING_NAMESPACE
 
-#define DATA_PIN    3
 #define LED_TYPE    WS2811
 #define COLOR_ORDER RGB
-#define NUM_LEDS    50
+#define NUM_LEDS    40
 #define FRAMES_PER_SECOND  120
 CRGB leds[NUM_LEDS];
 
@@ -25,7 +24,8 @@ void setup() {
   Serial.println("Hello world!");
 
   // FastLED stuff
-  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<LED_TYPE, 3, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<LED_TYPE, 9, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(255);
 
   Wire.begin(4);                // join i2c bus with address #4
@@ -71,6 +71,8 @@ void loop() {
   EVERY_N_MILLISECONDS( 20 ) {
     gHue++;  // slowly cycle the "base color" through the rainbow
   }
+
+  rainbow();
 
   FastLED.show();
   FastLED.delay(1000 / FRAMES_PER_SECOND);
